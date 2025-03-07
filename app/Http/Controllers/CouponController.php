@@ -30,12 +30,27 @@ class CouponController extends Controller {
     }
 
     public function updateCoupon(Request $request) {
-        $coupon = Coupon::find($request->id);
-        $coupon->code = $request->code;
-        $coupon->type = $request->type;
-        $coupon->discount = $request->discount;
-        $coupon->save();
-        return $this->success('Coupon updated successfully', $coupon);
+        try {
+            $coupon = Coupon::find($request->id);
+            if (!$coupon) {
+                return $this->error('Coupon not found');
+            }
+
+            $request->validate([
+                'code' => 'required|string|unique:coupons,code,' . $coupon->id,
+                'type' => 'required|in:fixed,percentage',
+                'discount' => 'required|numeric|min:0'
+            ]);
+
+            $coupon->code = $request->code;
+            $coupon->type = $request->type;
+            $coupon->discount = $request->discount;
+            $coupon->save();
+
+            return $this->success('Coupon updated successfully', $coupon);
+        } catch (\Exception $e) {
+            return $this->error('Failed to update coupon: ' . $e->getMessage());
+        }
     }
 
     public function deleteCoupon(Request $request, $id) {
