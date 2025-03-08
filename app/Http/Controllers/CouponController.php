@@ -8,11 +8,37 @@ use App\Models\Coupon;
 class CouponController extends Controller {
 
     public function verifyCoupon(Request $request) {
-        $coupon = Coupon::where('code', $request->code)->first();
-        if (!$coupon) {
-            return $this->error('Invalid coupon code');
+        try {
+            $request->validate([
+                'code' => 'required|string'
+            ]);
+
+            $coupon = Coupon::where('code', $request->code)->first();
+            if (!$coupon) {
+                return $this->error('Invalid coupon code');
+            }
+
+            // Check if coupon is active
+            if (isset($coupon->is_active) && !$coupon->is_active) {
+                return $this->error('This coupon is no longer active');
+            }
+
+            // Check expiration if exists
+            if (isset($coupon->expires_at) && now()->gt($coupon->expires_at)) {
+                return $this->error('This coupon has expired');
+            }
+
+            // Check usage limit if exists
+            if (isset($coupon->usage_limit) && isset($coupon->times_used) && $coupon->times_used >= $coupon->usage_limit) {
+                return $this->error('This coupon has reached its usage limit');
+            }
+
+            return $this->success('Coupon code is valid', $coupon);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return $this->error($e->getMessage());
+        } catch (\Exception $e) {
+            return $this->error('Failed to verify coupon: ' . $e->getMessage());
         }
-        return $this->success('Coupon code is valid', $coupon);
     }
 
     public function getCoupons() {
